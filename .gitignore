@@ -26,5 +26,8 @@ Thumbs.db
 .agents/
 AGENTS.md
 boost.json
+.mcp.json
+mcp.json
+
 
 
