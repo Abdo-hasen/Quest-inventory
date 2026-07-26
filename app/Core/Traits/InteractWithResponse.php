@@ -23,7 +23,7 @@ trait InteractWithResponse
         ], $code);
     }
 
-    public function sendFailedResponse(?string $message = null, $code = 400, ?string $direct = null): JsonResponse
+    public function sendFailedResponse(?string $message = null, int $code = 400, ?string $direct = null): JsonResponse
     {
         return response()->json([
             'ok' => false,

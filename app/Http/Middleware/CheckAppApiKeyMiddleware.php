@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Core\Traits\InteractWithResponse;
 use Closure;
 use Illuminate\Http\Request;
-use App\Core\Traits\InteractWithResponse;
 
 final class CheckAppApiKeyMiddleware
 {
@@ -28,6 +28,12 @@ final class CheckAppApiKeyMiddleware
 
     private function isValidApiKey(string $apiKey): bool
     {
-        return hash_equals(config('app.api_key'), $apiKey);
+        $configured = config('app.api_key');
+
+        if (! is_string($configured) || $configured === '') {
+            return false;
+        }
+
+        return hash_equals($configured, $apiKey);
     }
 }

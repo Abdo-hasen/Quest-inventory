@@ -60,7 +60,7 @@ test('can middleware blocks unauthorized requests with 403', function () {
 });
 
 test('user without a valid role fails all gate checks', function () {
-    $userWithoutRole = new User(['role' => null]);
+    $userWithoutRole = User::factory()->make(['role' => null]);
 
     $gates = [
         'manage-products',

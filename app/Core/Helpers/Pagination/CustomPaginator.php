@@ -16,8 +16,9 @@ final class CustomPaginator extends LengthAwarePaginator
     public function toArray(): array
     {
         $payload = [
-            'success' => true,
+            'ok' => true,
             'code' => $this->options['code'],
+
             'message' => $this->options['message'],
             'direct' => $this->options['direct'],
             'pageNumber' => $this->currentPage() - 1,

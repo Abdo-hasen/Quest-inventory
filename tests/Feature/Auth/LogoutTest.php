@@ -20,7 +20,7 @@ it('revokes current token on logout', function () {
         ->postJson('/api/v1/auth/logout', [], $this->headers);
 
     $response->assertStatus(200)
-        ->assertJson([
+        ->assertExactJson([
             'ok' => true,
             'code' => 200,
             'message' => 'Logged out successfully',
