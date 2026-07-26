@@ -1,0 +1,10 @@
+{
+  "Email address": "البريد الإلكتروني",
+  "Password": "كلمة المرور",
+  "The email address field is required.": "حقل البريد الإلكتروني مطلوب.",
+  "The email address must be a valid email address.": "يجب أن يكون البريد الإلكتروني عنوانًا صحيحًا.",
+  "The password field is required.": "حقل كلمة المرور مطلوب.",
+  "Login successful": "تم تسجيل الدخول بنجاح",
+  "Invalid credentials": "بيانات الاعتماد غير صحيحة",
+  "Logged out successfully": "تم تسجيل الخروج بنجاح"
+}

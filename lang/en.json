@@ -1,0 +1,10 @@
+{
+  "Email address": "Email address",
+  "Password": "Password",
+  "The email address field is required.": "The email address field is required.",
+  "The email address must be a valid email address.": "The email address must be a valid email address.",
+  "The password field is required.": "The password field is required.",
+  "Login successful": "Login successful",
+  "Invalid credentials": "Invalid credentials",
+  "Logged out successfully": "Logged out successfully"
+}
