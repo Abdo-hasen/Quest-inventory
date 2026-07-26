@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('reservations:expire')->everyMinute()->withoutOverlapping();
+Schedule::command('shipments:process')->everyMinute()->withoutOverlapping();

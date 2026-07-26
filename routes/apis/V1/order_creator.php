@@ -10,3 +10,8 @@ Route::middleware(['auth:sanctum', 'can:create-orders'])->group(function () {
         ->middleware('idempotency')
         ->name('orders.store');
 });
+
+Route::middleware(['auth:sanctum', 'can:view-own-orders'])->group(function () {
+    Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+    Route::get('orders/{order}', [OrderController::class, 'show'])->name('orders.show');
+});

@@ -232,4 +232,141 @@ final class ReservationService
             return $orderLine->fresh(['reservation']);
         });
     }
+
+    public function pick(int $reservationId, ?int $qty, ?int $actorId): Reservation
+    {
+        return DB::transaction(function () use ($reservationId, $qty, $actorId): Reservation {
+            /** @var Reservation $reservation */
+            $reservation = Reservation::query()
+                ->where('id', $reservationId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($reservation->status, [ReservationStatus::Released, ReservationStatus::Expired, ReservationStatus::Fulfilled], true)) {
+                throw new DomainException(__('Reservation cannot be picked in its current state'));
+            }
+
+            $pickable = $reservation->quantity - $reservation->quantity_picked;
+            $qty = $qty ?? $pickable;
+
+            if ($qty <= 0 || $qty > $pickable) {
+                throw ValidationException::withMessages([
+                    'quantity' => __('Quantity exceeds pickable amount'),
+                ]);
+            }
+
+            /** @var Inventory $inventory */
+            $inventory = Inventory::query()
+                ->where('product_id', $reservation->product_id)
+                ->where('warehouse_id', $reservation->warehouse_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $inventory->quantity_reserved -= $qty;
+            $inventory->quantity_picked += $qty;
+            $inventory->save();
+
+            $fromStatus = $reservation->status;
+            $reservation->quantity_picked += $qty;
+
+            if ($reservation->quantity_picked === $reservation->quantity) {
+                $reservation->status = ReservationStatus::Picked;
+            }
+
+            $reservation->save();
+
+            $reservation->loadMissing('orderLine');
+
+            $movement = new InventoryMovement;
+            $movement->product_id = $reservation->product_id;
+            $movement->warehouse_id = $reservation->warehouse_id;
+            $movement->type = MovementType::Pick;
+            $movement->quantity_delta = $qty;
+            $movement->reason = 'Stock picked';
+            $movement->actor_id = $actorId;
+            $movement->related_order_id = $reservation->orderLine?->sales_order_id;
+            $movement->related_reservation_id = $reservation->id;
+            $movement->created_at = now();
+            $movement->save();
+
+            $history = new ReservationHistory;
+            $history->reservation_id = $reservation->id;
+            $history->from_status = $fromStatus;
+            $history->to_status = $reservation->status;
+            $history->quantity_affected = $qty;
+            $history->actor_id = $actorId;
+            $history->notes = 'Stock marked as picked';
+            $history->created_at = now();
+            $history->save();
+
+            return $reservation;
+        });
+    }
+
+    public function pack(int $reservationId, int $qty, ?int $actorId): Reservation
+    {
+        return DB::transaction(function () use ($reservationId, $qty, $actorId): Reservation {
+            /** @var Reservation $reservation */
+            $reservation = Reservation::query()
+                ->where('id', $reservationId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($reservation->status, [ReservationStatus::Released, ReservationStatus::Expired, ReservationStatus::Fulfilled], true)) {
+                throw new DomainException(__('Reservation cannot be packed in its current state'));
+            }
+
+            if ($qty <= 0 || $qty > $reservation->quantity_picked) {
+                throw ValidationException::withMessages([
+                    'quantity' => __('Quantity exceeds packed amount'),
+                ]);
+            }
+
+            /** @var Inventory $inventory */
+            $inventory = Inventory::query()
+                ->where('product_id', $reservation->product_id)
+                ->where('warehouse_id', $reservation->warehouse_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $inventory->quantity_picked -= $qty;
+            $inventory->quantity_packed += $qty;
+            $inventory->save();
+
+            $fromStatus = $reservation->status;
+            $reservation->quantity_packed += $qty;
+
+            if ($reservation->quantity_packed === $reservation->quantity) {
+                $reservation->status = ReservationStatus::Packed;
+            }
+
+            $reservation->save();
+
+            $reservation->loadMissing('orderLine');
+
+            $movement = new InventoryMovement;
+            $movement->product_id = $reservation->product_id;
+            $movement->warehouse_id = $reservation->warehouse_id;
+            $movement->type = MovementType::Pack;
+            $movement->quantity_delta = $qty;
+            $movement->reason = 'Stock packed';
+            $movement->actor_id = $actorId;
+            $movement->related_order_id = $reservation->orderLine?->sales_order_id;
+            $movement->related_reservation_id = $reservation->id;
+            $movement->created_at = now();
+            $movement->save();
+
+            $history = new ReservationHistory;
+            $history->reservation_id = $reservation->id;
+            $history->from_status = $fromStatus;
+            $history->to_status = $reservation->status;
+            $history->quantity_affected = $qty;
+            $history->actor_id = $actorId;
+            $history->notes = 'Stock marked as packed';
+            $history->created_at = now();
+            $history->save();
+
+            return $reservation;
+        });
+    }
 }

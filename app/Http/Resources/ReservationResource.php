@@ -31,6 +31,7 @@ final class ReservationResource extends JsonResource
             'quantity_shipped' => $this->resource->quantity_shipped,
             'quantity_released' => $this->resource->quantity_released,
             'status' => $this->resource->status->value,
+            'order_reference' => $this->resource->orderLine?->sales_order_id,
             'expires_at' => $this->resource->expires_at?->toISOString(),
         ];
     }

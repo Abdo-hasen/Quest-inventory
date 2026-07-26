@@ -140,13 +140,13 @@ No new tables required — all needed tables and columns already exist from prio
 
 **Acceptance Criteria:**
 
-- [ ] AC-P6-1: `POST /api/v1/inventory/transfer` with `product_id`, `from_warehouse_id`, `to_warehouse_id`, `quantity` transfers only `quantity_available` stock — reserved/picked/packed are never eligible
-- [ ] AC-P6-2: If source `quantity_available < quantity` (re-checked after lock) → `422`; inventory unchanged
-- [ ] AC-P6-3: Both inventory rows are locked in ascending `id` order within a single DB transaction; two linked movement rows (`transfer_out` with negative delta, `transfer_in` with positive delta) are created with the same `created_at`
-- [ ] AC-P6-4: Transfer between same warehouse (`from === to`) → `422` at FormRequest validation (before hitting DB)
-- [ ] AC-P6-5: Transfer to an inactive destination warehouse → `422` at FormRequest validation
-- [ ] AC-P6-6: `GET /api/v1/reservations/{id}/history` returns immutable ordered entries from `reservation_history`, newest-last, with `actor` name (`"System"` if `actor_id = null`)
-- [ ] AC-P6-7: History endpoint is accessible to `admin` role only
+- [x] AC-P6-1: `POST /api/v1/inventory/transfer` with `product_id`, `from_warehouse_id`, `to_warehouse_id`, `quantity` transfers only `quantity_available` stock — reserved/picked/packed are never eligible
+- [x] AC-P6-2: If source `quantity_available < quantity` (re-checked after lock) → `422`; inventory unchanged
+- [x] AC-P6-3: Both inventory rows are locked in ascending `id` order within a single DB transaction; two linked movement rows (`transfer_out` with negative delta, `transfer_in` with positive delta) are created with the same `created_at`
+- [x] AC-P6-4: Transfer between same warehouse (`from === to`) → `422` at FormRequest validation (before hitting DB)
+- [x] AC-P6-5: Transfer to an inactive destination warehouse → `422` at FormRequest validation
+- [x] AC-P6-6: `GET /api/v1/reservations/{id}/history` returns immutable ordered entries from `reservation_history`, newest-last, with `actor` name (`"System"` if `actor_id = null`)
+- [x] AC-P6-7: History endpoint is accessible to `admin` role only
 
 **Expected Result:** Transfers move only free stock and never invalidate open reservations; any reservation's full lifecycle is reconstructable after the fact.
 

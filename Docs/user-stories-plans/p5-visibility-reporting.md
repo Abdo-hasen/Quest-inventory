@@ -142,13 +142,13 @@ No AGENTS.md violations — read paths use same service/controller pattern; no n
 
 **Acceptance Criteria:**
 
-- [ ] AC-P3-1: `GET /api/v1/inventory?product_id=1&warehouse_id=2` returns all 5 quantity states for that inventory row; if no row exists, return all zeros (not 404)
-- [ ] AC-P3-2: `GET /api/v1/inventory?product_id=1` (omitting `warehouse_id`) returns a per-warehouse array of all inventory rows for that product
-- [ ] AC-P3-3: `GET /api/v1/inventory/{product_id}/movements` returns a paginated, chronological ledger (newest first) with `type`, `quantity_delta`, `actor_name`, `related_order_id`, `related_reservation_id`, `created_at`; filterable by `warehouse_id`
-- [ ] AC-P3-4: `GET /api/v1/reservations?status=open` lists non-expired, non-released, non-fulfilled reservations; filterable by `warehouse_id` and `product_id`
-- [ ] AC-P3-5: `GET /api/v1/orders/{id}` returns the order with per-line reservation status; `order_creator` sees only own orders; `admin` sees all
-- [ ] AC-P3-6: `GET /api/v1/orders?consumed=true` lists orders with at least one non-cancelled reservation
-- [ ] AC-P3-7: Movements endpoint eager-loads `actor` to avoid N+1; reservations endpoint eager-loads `orderLine.salesOrder`
+- [x] AC-P3-1: `GET /api/v1/inventory?product_id=1&warehouse_id=2` returns all 5 quantity states for that inventory row; if no row exists, return all zeros (not 404)
+- [x] AC-P3-2: `GET /api/v1/inventory?product_id=1` (omitting `warehouse_id`) returns a per-warehouse array of all inventory rows for that product
+- [x] AC-P3-3: `GET /api/v1/inventory/{product_id}/movements` returns a paginated, chronological ledger (newest first) with `type`, `quantity_delta`, `actor_name`, `related_order_id`, `related_reservation_id`, `created_at`; filterable by `warehouse_id`
+- [x] AC-P3-4: `GET /api/v1/reservations?status=open` lists non-expired, non-released, non-fulfilled reservations; filterable by `warehouse_id` and `product_id`
+- [x] AC-P3-5: `GET /api/v1/orders/{id}` returns the order with per-line reservation status; `order_creator` sees only own orders; `admin` sees all
+- [x] AC-P3-6: `GET /api/v1/orders?consumed=true` lists orders with at least one non-cancelled reservation
+- [x] AC-P3-7: Movements endpoint eager-loads `actor` to avoid N+1; reservations endpoint eager-loads `orderLine.salesOrder`
 
 **Expected Result:** All stock state and order consumption is queryable in real time with correct role scoping and filtering.
 

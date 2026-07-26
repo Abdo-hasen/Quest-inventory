@@ -123,14 +123,14 @@ No new tables or migrations required — all columns exist on `inventory` and `r
 
 **Acceptance Criteria:**
 
-- [ ] AC-P4-1: `POST /api/v1/reservations/{id}/pick` with optional `quantity` (default = full remaining reserved): decrements `quantity_reserved`, increments `quantity_picked` on both `inventory` and `reservation`; updates reservation status
-- [ ] AC-P4-2: Status → `picked` when `quantity_picked == quantity` (fully picked); remains `open` while partially picked
-- [ ] AC-P4-3: Cannot pick more than `reservation.quantity - reservation.quantity_picked` (remaining pickable quantity) — `422`
-- [ ] AC-P4-4: `POST /api/v1/reservations/{id}/pack` with `quantity`: decrements `quantity_picked`, increments `quantity_packed` on both rows
-- [ ] AC-P4-5: Status → `packed` when `quantity_packed == quantity` (fully packed); remains `picked` while partial
-- [ ] AC-P4-6: Cannot pack more than `reservation.quantity_picked` — `422`
-- [ ] AC-P4-7: Pick/pack on `released`, `expired`, or `fulfilled` reservation → `409`
-- [ ] AC-P4-8: Each operation creates a `reservation_history` row and an `InventoryMovement` row; wrapped in `DB::transaction()` with `lockForUpdate()`
+- [x] AC-P4-1: `POST /api/v1/reservations/{id}/pick` with optional `quantity` (default = full remaining reserved): decrements `quantity_reserved`, increments `quantity_picked` on both `inventory` and `reservation`; updates reservation status
+- [x] AC-P4-2: Status → `picked` when `quantity_picked == quantity` (fully picked); remains `open` while partially picked
+- [x] AC-P4-3: Cannot pick more than `reservation.quantity - reservation.quantity_picked` (remaining pickable quantity) — `422`
+- [x] AC-P4-4: `POST /api/v1/reservations/{id}/pack` with `quantity`: decrements `quantity_picked`, increments `quantity_packed` on both rows
+- [x] AC-P4-5: Status → `packed` when `quantity_packed == quantity` (fully packed); remains `picked` while partial
+- [x] AC-P4-6: Cannot pack more than `reservation.quantity_picked` — `422`
+- [x] AC-P4-7: Pick/pack on `released`, `expired`, or `fulfilled` reservation → `409`
+- [x] AC-P4-8: Each operation creates a `reservation_history` row and an `InventoryMovement` row; wrapped in `DB::transaction()` with `lockForUpdate()`
 
 **Expected Result:** Picked and packed quantities are tracked distinctly from reserved stock; only fully packed reservations are eligible to enter the shipment queue.
 

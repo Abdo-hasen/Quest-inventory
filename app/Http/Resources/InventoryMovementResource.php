@@ -26,6 +26,7 @@ final class InventoryMovementResource extends JsonResource
             'quantity_delta' => $this->resource->quantity_delta,
             'reason' => $this->resource->reason,
             'actor_id' => $this->resource->actor_id,
+            'actor_name' => $this->resource->actor?->name ?? __('System'),
             'related_order_id' => $this->resource->related_order_id,
             'related_reservation_id' => $this->resource->related_reservation_id,
             'created_at' => $this->resource->created_at?->toISOString(),
