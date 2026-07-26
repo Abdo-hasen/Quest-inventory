@@ -2,7 +2,6 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -18,7 +17,7 @@ it('revokes current token on logout', function () {
     $token = $user->createToken('test-token');
 
     $response = $this->withToken($token->plainTextToken)
-        ->postJson('/api/v1/user/logout', [], $this->headers);
+        ->postJson('/api/v1/auth/logout', [], $this->headers);
 
     $response->assertStatus(200)
         ->assertJson([
@@ -33,7 +32,7 @@ it('revokes current token on logout', function () {
 });
 
 it('returns 401 unauthorized when logging out unauthenticated', function () {
-    $response = $this->postJson('/api/v1/user/logout', [], $this->headers);
+    $response = $this->postJson('/api/v1/auth/logout', [], $this->headers);
 
     $response->assertStatus(401)
         ->assertJson([

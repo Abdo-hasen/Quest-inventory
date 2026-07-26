@@ -20,7 +20,7 @@ it('logs in successfully and returns token and role', function () {
         'role' => UserRole::WarehouseOperator,
     ]);
 
-    $response = $this->postJson('/api/v1/user/login', [
+    $response = $this->postJson('/api/v1/auth/login', [
         'email' => 'operator@warehouse.com',
         'password' => 'secret123',
     ], $this->headers);
@@ -45,7 +45,7 @@ it('returns 401 unauthorized for invalid password', function () {
         'password' => bcrypt('secret123'),
     ]);
 
-    $response = $this->postJson('/api/v1/user/login', [
+    $response = $this->postJson('/api/v1/auth/login', [
         'email' => 'operator@warehouse.com',
         'password' => 'wrongpassword',
     ], $this->headers);
@@ -61,7 +61,7 @@ it('returns 401 unauthorized for invalid password', function () {
 });
 
 it('returns 422 unprocessable content when validation fails', function () {
-    $response = $this->postJson('/api/v1/user/login', [], $this->headers);
+    $response = $this->postJson('/api/v1/auth/login', [], $this->headers);
 
     $response->assertStatus(422)
         ->assertJson([
@@ -71,7 +71,7 @@ it('returns 422 unprocessable content when validation fails', function () {
 });
 
 it('returns 401 unauthorized for non-existent email', function () {
-    $response = $this->postJson('/api/v1/user/login', [
+    $response = $this->postJson('/api/v1/auth/login', [
         'email' => 'nonexistent@warehouse.com',
         'password' => 'secret123',
     ], $this->headers);

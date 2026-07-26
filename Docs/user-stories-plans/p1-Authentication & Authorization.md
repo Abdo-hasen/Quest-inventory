@@ -131,12 +131,12 @@ P2 — Gate definitions + can: middleware wiring + 403 enforcement tests
 
 **Acceptance Criteria:**
 
-- [ ] AC-P1-1: Migration adds `role` column (`string`, default `'order_creator'`) to `users` table.
-- [ ] AC-P1-2: `UserRole` backed enum (`admin`, `order_creator`, `warehouse_operator`) created and cast on `User` model (`'role' => UserRole::class`).
-- [ ] AC-P1-3: `User` model uses `Laravel\Sanctum\HasApiTokens` and protects `$fillable` attributes (`name`, `email`, `password`, `role`).
-- [ ] AC-P1-4: `POST /api/login` validates credentials with `LoginRequest`, checks password hash, creates Sanctum token, and returns 200 OK with `{ token, role }` using `InteractWithResponse` trait shape.
-- [ ] AC-P1-5: Invalid credentials return 401 Unauthorized via `InteractWithResponse`.
-- [ ] AC-P1-6: `POST /api/logout` (protected by `auth:sanctum`) revokes current token and returns 200 OK using `InteractWithResponse`.
+- [x] AC-P1-1: Migration adds `role` column (`string`, default `'order_creator'`) to `users` table.
+- [x] AC-P1-2: `UserRole` backed enum (`admin`, `order_creator`, `warehouse_operator`) created and cast on `User` model (`'role' => UserRole::class`).
+- [x] AC-P1-3: `User` model uses `Laravel\Sanctum\HasApiTokens` and protects `$fillable` attributes (`name`, `email`, `password`, `role`).
+- [x] AC-P1-4: `POST /api/v1/auth/login` validates credentials with `LoginRequest`, checks password hash, creates Sanctum token, and returns 200 OK with `{ token, role }` using `InteractWithResponse` trait shape.
+- [x] AC-P1-5: Invalid credentials return 401 Unauthorized via `InteractWithResponse`.
+- [x] AC-P1-6: `POST /api/v1/auth/logout` (protected by `auth:sanctum`) revokes current token and returns 200 OK using `InteractWithResponse`.
 
 **Expected Result:** Users can log in to obtain a Bearer token containing their role and log out to revoke it.
 
@@ -196,14 +196,14 @@ routes/
    - `login(LoginRequest $request)`: calls service, returns `sendSuccessResponse(...)` or `sendFailedResponse(__('Invalid credentials'), 401)`.
    - `logout(Request $request)`: calls service, returns `sendSuccessResponse([], __('Logged out successfully'))`.
 4. Define routes in `routes/api.php`:
-   - `POST /api/login` -> `AuthController@login`
-   - `POST /api/logout` -> `AuthController@logout` (protected by `auth:sanctum`).
+   - `POST /api/v1/auth/login` -> `AuthController@login`
+   - `POST /api/v1/auth/logout` -> `AuthController@logout` (protected by `auth:sanctum`).
 5. Add translation keys to `lang/en.json` and `lang/ar.json`.
 6. Code style: run `vendor/bin/pint --dirty`.
 
 #### API Contract
 
-**`POST /api/login`**
+**`POST /api/v1/auth/login`**
 
 Request:
 ```json
@@ -278,13 +278,13 @@ Response 200 OK:
 
 **Acceptance Criteria:**
 
-- [ ] AC-P2-1: 10 domain Gates defined in `AppServiceProvider::boot()` via `Gate::define()`.
-- [ ] AC-P2-2: Gate checks evaluate `$user->role` enum against assigned roles:
+- [x] AC-P2-1: 10 domain Gates defined in `AuthServiceProvider::boot()` via `Gate::define()`.
+- [x] AC-P2-2: Gate checks evaluate `$user->role` enum against assigned roles:
   - `admin` -> `manage-products`, `manage-warehouses`, `manage-users`, `adjust-stock`, `view-inventory`
   - `order_creator` -> `create-orders`, `view-own-orders`, `view-inventory`
   - `warehouse_operator` -> `manage-reservations`, `pick-pack-ship`, `transfer-stock`, `view-inventory`
-- [ ] AC-P2-3: `can:<ability>` route middleware protects endpoints.
-- [ ] AC-P2-4: Unauthorized access returns 403 Forbidden JSON matching `InteractWithResponse` contract.
+- [x] AC-P2-3: `can:<ability>` route middleware protects endpoints.
+- [x] AC-P2-4: Unauthorized access returns 403 Forbidden JSON matching `InteractWithResponse` contract.
 
 **Expected Result:** Domain actions and endpoints enforce role boundaries, denying unauthorized requests with 403 Forbidden.
 
@@ -296,7 +296,9 @@ Response 200 OK:
 ```
 app/
 └── Providers/
-    └── AppServiceProvider.php (MODIFY - define 10 domain Gates in boot())
+    └── AuthServiceProvider.php (NEW - define 10 domain Gates in boot())
+bootstrap/
+└── providers.php (MODIFY - register AuthServiceProvider)
 tests/
 └── Feature/
     └── Auth/
@@ -304,7 +306,7 @@ tests/
 ```
 
 #### Sub-phase 2.1 — Full-stack
-1. Update `app/Providers/AppServiceProvider.php`:
+1. Create `app/Providers/AuthServiceProvider.php` & register in `bootstrap/providers.php`:
    - Import `Illuminate\Support\Facades\Gate` and `App\Core\Enums\UserRole`.
    - In `boot()`, define the 10 domain gates:
      - `manage-products`: `$user->role === UserRole::Admin`
@@ -332,4 +334,4 @@ tests/
 | Sad: Route protected by `can:manage-products` returns 403 for non-admin | Feature | `tests/Feature/Auth/AuthorizationGateTest.php` | `actingAs($operator)->getJson('/test-route')->assertStatus(403)` |
 
 #### Edge cases
-- E1-P2: Users without a valid role assigned fail all gate checks by default.
+- E1-P2: Users without a valid role assigned fail all gate checks by default.
