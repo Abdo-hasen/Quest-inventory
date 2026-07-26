@@ -26,7 +26,7 @@ final class ShipmentService
 
     public function processShipment(Shipment $shipment): void
     {
-        DB::transaction(function () use ($shipment): void {
+        $alreadyFinalized = DB::transaction(function () use ($shipment): bool {
             /** @var Shipment $lockedShipment */
             $lockedShipment = Shipment::query()
                 ->where('id', $shipment->id)
@@ -34,13 +34,27 @@ final class ShipmentService
                 ->firstOrFail();
 
             if ($lockedShipment->status === ShipmentStatus::Shipped || $lockedShipment->status === ShipmentStatus::Failed) {
-                return;
+                return true;
             }
 
             $lockedShipment->status = ShipmentStatus::InTransit;
             $lockedShipment->save();
 
-            $result = $this->shippingProvider->ship($lockedShipment);
+            return false;
+        });
+
+        if ($alreadyFinalized) {
+            return;
+        }
+
+        $result = $this->shippingProvider->ship($shipment);
+
+        DB::transaction(function () use ($shipment, $result): void {
+            /** @var Shipment $lockedShipment */
+            $lockedShipment = Shipment::query()
+                ->where('id', $shipment->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
             match ($result['status']) {
                 ShipmentAttemptStatus::Success => $this->confirmShipmentInternal($lockedShipment, $result['quantity_shipped'], $result['raw']),

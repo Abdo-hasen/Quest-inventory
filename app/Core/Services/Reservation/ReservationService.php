@@ -102,26 +102,26 @@ final class ReservationService
                 $inventory->quantity_reserved -= $quantityToExpire;
                 $inventory->quantity_available += $quantityToExpire;
                 $inventory->save();
+
+                $reservation->loadMissing('orderLine');
+
+                $movement = new InventoryMovement;
+                $movement->product_id = $reservation->product_id;
+                $movement->warehouse_id = $reservation->warehouse_id;
+                $movement->type = MovementType::Release;
+                $movement->quantity_delta = -$quantityToExpire;
+                $movement->reason = 'Reservation expired';
+                $movement->actor_id = null;
+                $movement->related_order_id = $reservation->orderLine?->sales_order_id;
+                $movement->related_reservation_id = $reservation->id;
+                $movement->created_at = now();
+                $movement->save();
             }
 
             $fromStatus = $reservation->status;
             $reservation->status = ReservationStatus::Expired;
             $reservation->quantity_released += $quantityToExpire;
             $reservation->save();
-
-            $reservation->loadMissing('orderLine');
-
-            $movement = new InventoryMovement;
-            $movement->product_id = $reservation->product_id;
-            $movement->warehouse_id = $reservation->warehouse_id;
-            $movement->type = MovementType::Release;
-            $movement->quantity_delta = -$quantityToExpire;
-            $movement->reason = 'Reservation expired';
-            $movement->actor_id = null;
-            $movement->related_order_id = $reservation->orderLine?->sales_order_id;
-            $movement->related_reservation_id = $reservation->id;
-            $movement->created_at = now();
-            $movement->save();
 
             $history = new ReservationHistory;
             $history->reservation_id = $reservation->id;
@@ -139,25 +139,23 @@ final class ReservationService
 
     public function partialCancel(int $orderId, int $lineId, int $newQty, ?int $actorId): OrderLine
     {
-        /** @var OrderLine $orderLine */
-        $orderLine = OrderLine::query()
-            ->where('id', $lineId)
-            ->where('sales_order_id', $orderId)
-            ->with(['reservation'])
-            ->firstOrFail();
-
-        $reservation = $orderLine->reservation;
-
-        if ($reservation === null) {
-            throw new DomainException(__('Reservation not found for order line'));
-        }
-
-        return DB::transaction(function () use ($orderLine, $reservation, $newQty, $actorId): OrderLine {
-            /** @var Reservation $lockedReservation */
-            $lockedReservation = Reservation::query()
-                ->where('id', $reservation->id)
+        return DB::transaction(function () use ($orderId, $lineId, $newQty, $actorId): OrderLine {
+            /** @var OrderLine $orderLine */
+            $orderLine = OrderLine::query()
+                ->where('id', $lineId)
+                ->where('sales_order_id', $orderId)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            /** @var Reservation|null $lockedReservation */
+            $lockedReservation = Reservation::query()
+                ->where('order_line_id', $orderLine->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($lockedReservation === null) {
+                throw new DomainException(__('Reservation not found for order line'));
+            }
 
             if ($lockedReservation->status !== ReservationStatus::Open) {
                 throw new DomainException(__('Reservation cannot be updated in its current state'));
@@ -242,7 +240,7 @@ final class ReservationService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (in_array($reservation->status, [ReservationStatus::Released, ReservationStatus::Expired, ReservationStatus::Fulfilled], true)) {
+            if (! in_array($reservation->status, [ReservationStatus::Open, ReservationStatus::Picked], true)) {
                 throw new DomainException(__('Reservation cannot be picked in its current state'));
             }
 
@@ -316,7 +314,9 @@ final class ReservationService
                 throw new DomainException(__('Reservation cannot be packed in its current state'));
             }
 
-            if ($qty <= 0 || $qty > $reservation->quantity_picked) {
+            $remainingPickable = $reservation->quantity_picked - $reservation->quantity_packed;
+
+            if ($qty <= 0 || $qty > $remainingPickable) {
                 throw ValidationException::withMessages([
                     'quantity' => __('Quantity exceeds packed amount'),
                 ]);

@@ -2,13 +2,20 @@
 
 This document outlines the architectural choices (10 Core Questions & Rationale), user stories, acceptance criteria, and explicit business logic/technical specifications for the **Warehouse Inventory Reservation Engine API**.
 
+> **Related Architecture Documents:**
+> - [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — Main system architecture overview.
+> - [DB-ARCHITECTURE.md](./DB-ARCHITECTURE.md) — Detailed database schema rationale & table breakdown.
+
 ---
 
 ## 1. Architectural & Business Logic Decisions (Q&A with Rationale)
 
-### Q1. Should reservations expire automatically?
-- **Decision**: Yes — auto-expire via scheduled job (30 min TTL)
-- **Why & Rationale**: TTL expiry is standard in reservation engines to prevent inventory hoarding and free unfulfilled stock. It also demonstrates a scheduled Artisan command + background job retry mechanism.
+### Q1. Should reservations expire automatically, and how do warehouse operators process them?
+- **Decision**: Yes — auto-expire via scheduled job (30 min TTL). Reservations link directly to specific `order_item_id` lines.
+- **Why & Rationale**: 
+  - **TTL Purpose**: The 30-minute TTL is stock protection against abandoned carts or unconfirmed orders (auto-release), NOT worker delay.
+  - **Worker Execution**: Warehouse operators do not wait 30 minutes. Upon reservation creation (`status = open`), reservations immediately appear on worker handheld scanners (`GET /api/reservations?status=open`), allowing instant picking.
+  - **Separation of Concerns (OMS vs WMS)**: Payment states (`Pending Payment`, `Paid`) belong to the Order Management System (OMS). The Warehouse Engine (WMS) handles physical inventory states (`Open`, `Picked`, `Packed`, `Shipped`). The OMS validates payment first and calls the WMS API to reserve stock upon payment confirmation.
 
 ---
 
@@ -63,6 +70,12 @@ This document outlines the architectural choices (10 Core Questions & Rationale)
 ### Q10. How should the mock shipping provider produce its random outcomes?
 - **Decision**: Weighted random by default, with an override parameter (`?force_scenario=...`)
 - **Why & Rationale**: Guarantees that all 5 specific shipping provider response scenarios (success, failure, timeout, duplicate, rate limit) can be deterministically demonstrated on demand while behaving realistically by default.
+
+---
+
+### Q11. How are reservations mapped to sales orders?
+- **Decision**: Reservations link explicitly to individual order line items (`order_item_id`).
+- **Why & Rationale**: Linking reservations per `order_item_id` provides granular line-item tracking, enables partial cancellations per item, and avoids ambiguity when an order contains multiple products reserved from different warehouses.
 
 ---
 

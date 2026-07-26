@@ -14,7 +14,7 @@ final class MockShippingProvider implements ShippingProviderInterface
 
     public function ship(Shipment $shipment): array
     {
-        $envScenario = env('MOCK_SHIPPING_SCENARIO');
+        $envScenario = config('services.mock_shipping_scenario');
         $scenario = $this->forceScenario ?? (is_string($envScenario) && $envScenario !== '' ? $envScenario : null);
 
         if ($scenario === null) {

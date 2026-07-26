@@ -2,6 +2,10 @@
 
 This document details the architectural decisions, domain design trade-offs, and rationale behind the Warehouse Inventory Reservation Engine.
 
+> **Related Architecture Documents:**
+> - [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — Main system architecture overview.
+> - [Stories-Aechitect.md](./Stories-Aechitect.md) — User stories & 11 core architectural questions/answers.
+
 ---
 
 ## 1. Authentication & Authorization: Single `User` Model + Enum Role

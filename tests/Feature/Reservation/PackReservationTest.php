@@ -142,6 +142,23 @@ test('packing more than picked quantity returns 422', function () {
         ->and($this->inventory->quantity_packed)->toBe(0);
 });
 
+test('packing more than remaining pickable quantity returns 422', function () {
+    // 5 picked, pack 3 first
+    $this->actingAs($this->warehouseOperator)
+        ->postJson("/api/v1/reservations/{$this->reservation->id}/pack", ['quantity' => 3], $this->headers)
+        ->assertStatus(200);
+
+    // Remaining pickable = 5 - 3 = 2. Trying to pack 3 more should fail.
+    $response = $this->actingAs($this->warehouseOperator)
+        ->postJson("/api/v1/reservations/{$this->reservation->id}/pack", ['quantity' => 3], $this->headers);
+
+    $response->assertStatus(422)
+        ->assertJson([
+            'ok' => false,
+            'code' => 422,
+        ]);
+});
+
 test('packing on open reservation with zero picked returns 422', function () {
     $this->reservation->update(['status' => ReservationStatus::Open, 'quantity_picked' => 0]);
     $this->inventory->update(['quantity_picked' => 0, 'quantity_reserved' => 5]);

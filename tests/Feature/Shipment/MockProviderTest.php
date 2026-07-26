@@ -9,9 +9,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+afterEach(function () {
+    putenv('MOCK_SHIPPING_SCENARIO');
+    unset($_ENV['MOCK_SHIPPING_SCENARIO']);
+    config(['services.mock_shipping_scenario' => null]);
+});
+
 test('MOCK_SHIPPING_SCENARIO=success always succeeds', function () {
-    putenv('MOCK_SHIPPING_SCENARIO=success');
-    $_ENV['MOCK_SHIPPING_SCENARIO'] = 'success';
+    config(['services.mock_shipping_scenario' => 'success']);
 
     $provider = new MockShippingProvider;
     $shipment = Shipment::factory()->create();
@@ -23,8 +28,7 @@ test('MOCK_SHIPPING_SCENARIO=success always succeeds', function () {
 });
 
 test('MOCK_SHIPPING_SCENARIO=permanent_failure always fails', function () {
-    putenv('MOCK_SHIPPING_SCENARIO=permanent_failure');
-    $_ENV['MOCK_SHIPPING_SCENARIO'] = 'permanent_failure';
+    config(['services.mock_shipping_scenario' => 'permanent_failure']);
 
     $provider = new MockShippingProvider;
     $shipment = Shipment::factory()->create();
@@ -34,15 +38,11 @@ test('MOCK_SHIPPING_SCENARIO=permanent_failure always fails', function () {
 });
 
 test('forceScenario constructor param overrides env', function () {
-    putenv('MOCK_SHIPPING_SCENARIO=permanent_failure');
-    $_ENV['MOCK_SHIPPING_SCENARIO'] = 'permanent_failure';
+    config(['services.mock_shipping_scenario' => 'permanent_failure']);
 
     $provider = new MockShippingProvider('success');
     $shipment = Shipment::factory()->create();
 
     $result = $provider->ship($shipment);
     expect($result['status'])->toBe(ShipmentAttemptStatus::Success);
-
-    putenv('MOCK_SHIPPING_SCENARIO');
-    unset($_ENV['MOCK_SHIPPING_SCENARIO']);
 });

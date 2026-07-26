@@ -33,7 +33,7 @@ beforeEach(function () {
     $this->inventory = Inventory::factory()->create([
         'product_id' => $this->product->id,
         'warehouse_id' => $this->warehouse->id,
-        'quantity_available' => 10,
+        'quantity_available' => 5,
         'quantity_reserved' => 5,
         'quantity_picked' => 0,
         'quantity_packed' => 0,
@@ -188,6 +188,19 @@ test('picking released reservation returns 409', function () {
 
 test('picking expired reservation returns 409', function () {
     $this->reservation->update(['status' => ReservationStatus::Expired]);
+
+    $response = $this->actingAs($this->warehouseOperator)
+        ->postJson("/api/v1/reservations/{$this->reservation->id}/pick", [], $this->headers);
+
+    $response->assertStatus(409)
+        ->assertJson([
+            'ok' => false,
+            'code' => 409,
+        ]);
+});
+
+test('picking packed reservation returns 409', function () {
+    $this->reservation->update(['status' => ReservationStatus::Packed]);
 
     $response = $this->actingAs($this->warehouseOperator)
         ->postJson("/api/v1/reservations/{$this->reservation->id}/pick", [], $this->headers);

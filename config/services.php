@@ -35,4 +35,5 @@ return [
         ],
     ],
 
+    'mock_shipping_scenario' => env('MOCK_SHIPPING_SCENARIO'),
 ];
