@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Models\IdempotencyKey;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
 final class IdempotencyMiddleware
 {
@@ -27,15 +26,13 @@ final class IdempotencyMiddleware
         }
 
         $userId = (int) $request->user()?->id;
+        $cacheKey = "idempotency:{$userId}:{$key}";
 
-        /** @var IdempotencyKey|null $existing */
-        $existing = IdempotencyKey::query()
-            ->where('key', $key)
-            ->where('user_id', $userId)
-            ->first();
+        /** @var array{response_code: int, response_body: mixed}|null $cached */
+        $cached = Cache::get($cacheKey);
 
-        if ($existing !== null && $existing->created_at->isAfter(now()->subHours(24))) {
-            return response()->json($existing->response_body, $existing->response_code);
+        if (is_array($cached) && isset($cached['response_code'], $cached['response_body'])) {
+            return response()->json($cached['response_body'], (int) $cached['response_code']);
         }
 
         /** @var Response $response */
@@ -46,25 +43,10 @@ final class IdempotencyMiddleware
             $body = $response->getData(true);
             $statusCode = $response->getStatusCode();
 
-            try {
-                IdempotencyKey::create([
-                    'key' => $key,
-                    'user_id' => $userId,
-                    'response_code' => $statusCode,
-                    'response_body' => $body,
-                    'created_at' => now(),
-                ]);
-            } catch (Throwable) {
-                // If a concurrent request inserted the key first, attempt to return the cached response
-                $existing = IdempotencyKey::query()
-                    ->where('key', $key)
-                    ->where('user_id', $userId)
-                    ->first();
-
-                if ($existing !== null) {
-                    return response()->json($existing->response_body, $existing->response_code);
-                }
-            }
+            Cache::put($cacheKey, [
+                'response_code' => $statusCode,
+                'response_body' => $body,
+            ], now()->addHours(24));
         }
 
         return $response;

@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Core\Enums\UserRole;
-use App\Models\IdempotencyKey;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\Reservation;
@@ -11,6 +10,7 @@ use App\Models\SalesOrder;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 
 uses(RefreshDatabase::class);
 
@@ -54,7 +54,7 @@ test('submitting with same idempotency key returns cached 201 response', functio
 
     expect(SalesOrder::count())->toBe(1)
         ->and(Reservation::count())->toBe(1)
-        ->and(IdempotencyKey::count())->toBe(1);
+        ->and(Cache::has("idempotency:{$this->orderCreator1->id}:unique-order-key-123"))->toBeTrue();
 
     $this->inventory->refresh();
     expect($this->inventory->quantity_available)->toBe(8)

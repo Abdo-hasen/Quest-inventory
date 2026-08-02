@@ -215,3 +215,20 @@ test('late confirmation on already-shipped shipment is a no-op that prevents dou
     expect($this->inventory->quantity_packed)->toBe(5)
         ->and($this->inventory->quantity_shipped)->toBe(0);
 });
+
+test('check shipment status job configures exponential backoff with jitter correctly', function () {
+    $shipment = Shipment::factory()->create([
+        'reservation_id' => $this->reservation->id,
+        'quantity' => 5,
+        'status' => ShipmentStatus::Timeout,
+    ]);
+
+    $job = new CheckShipmentStatusJob($shipment);
+
+    $delay = $job->backoff();
+
+    expect($job->tries)->toBe(5)
+        ->and($delay)->toBeGreaterThanOrEqual(48)
+        ->and($delay)->toBeLessThanOrEqual(72);
+});
+

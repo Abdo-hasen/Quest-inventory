@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Order;
+
 use App\Core\Enums\UserRole;
 use App\Core\Services\Order\OrderService;
 use App\Models\Inventory;
@@ -10,111 +12,128 @@ use App\Models\Reservation;
 use App\Models\SalesOrder;
 use App\Models\User;
 use App\Models\Warehouse;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Exception;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Concurrency;
 use Illuminate\Validation\ValidationException;
+use Tests\TestCase;
+use Throwable;
 
-uses(RefreshDatabase::class);
+class ConcurrencyTest extends TestCase
+{
+    use DatabaseMigrations;
 
-beforeEach(function () {
-    $this->headers = [
-        'Accept' => 'application/json',
-        'X-API-KEY' => 'secret_app_key_123',
-    ];
+    private User $orderCreator1;
 
-    $this->orderCreator1 = User::factory()->create(['role' => UserRole::OrderCreator]);
-    $this->orderCreator2 = User::factory()->create(['role' => UserRole::OrderCreator]);
+    private User $orderCreator2;
 
-    $this->warehouse = Warehouse::factory()->create(['is_active' => true]);
-    $this->product = Product::factory()->create();
+    private Warehouse $warehouse;
 
-    $this->inventory = Inventory::factory()->create([
-        'product_id' => $this->product->id,
-        'warehouse_id' => $this->warehouse->id,
-        'quantity_available' => 5,
-        'quantity_reserved' => 0,
-    ]);
-});
+    private Product $product;
 
-test('sequential requests for limited stock ensure exactly one succeeds and stock never goes negative', function () {
-    $payload = [
-        'lines' => [
-            [
-                'product_id' => $this->product->id,
-                'warehouse_id' => $this->warehouse->id,
-                'quantity' => 5,
+    private Inventory $inventory;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->orderCreator1 = User::factory()->create(['role' => UserRole::OrderCreator]);
+        $this->orderCreator2 = User::factory()->create(['role' => UserRole::OrderCreator]);
+
+        $this->warehouse = Warehouse::factory()->create(['is_active' => true]);
+        $this->product = Product::factory()->create();
+
+        $this->inventory = Inventory::factory()->create([
+            'product_id' => $this->product->id,
+            'warehouse_id' => $this->warehouse->id,
+            'quantity_available' => 5,
+            'quantity_reserved' => 0,
+        ]);
+    }
+
+    public function test_sequential_requests_for_limited_stock_ensure_exactly_one_succeeds_and_stock_never_goes_negative(): void
+    {
+        $payload = [
+            'lines' => [
+                [
+                    'product_id' => $this->product->id,
+                    'warehouse_id' => $this->warehouse->id,
+                    'quantity' => 5,
+                ],
             ],
-        ],
-    ];
+        ];
 
-    $results = [];
+        $results = [];
 
-    try {
-        $results[] = app(OrderService::class)->create($payload, (int) $this->orderCreator1->id);
-    } catch (Exception $e) {
-        $results[] = $e;
+        try {
+            $results[] = app(OrderService::class)->create($payload, (int) $this->orderCreator1->id);
+        } catch (Exception $e) {
+            $results[] = $e;
+        }
+
+        try {
+            $results[] = app(OrderService::class)->create($payload, (int) $this->orderCreator2->id);
+        } catch (Exception $e) {
+            $results[] = $e;
+        }
+
+        $successful = array_filter($results, fn ($res) => $res instanceof SalesOrder);
+        $failed = array_filter($results, fn ($res) => $res instanceof ValidationException);
+
+        $this->assertCount(1, $successful);
+        $this->assertCount(1, $failed);
+
+        $this->inventory->refresh();
+        $this->assertEquals(0, $this->inventory->quantity_available);
+        $this->assertEquals(5, $this->inventory->quantity_reserved);
+
+        $this->assertEquals(1, SalesOrder::count());
+        $this->assertEquals(1, Reservation::count());
     }
 
-    try {
-        $results[] = app(OrderService::class)->create($payload, (int) $this->orderCreator2->id);
-    } catch (Exception $e) {
-        $results[] = $e;
-    }
+    public function test_concurrent_task_runner_ensures_stock_protection_with_pessimistic_locking(): void
+    {
+        if (config('database.default') === 'sqlite' && config('database.connections.sqlite.database') === ':memory:') {
+            $this->assertTrue(true);
 
-    $successful = array_filter($results, fn ($res) => $res instanceof SalesOrder);
-    $failed = array_filter($results, fn ($res) => $res instanceof ValidationException);
+            return;
+        }
 
-    expect(count($successful))->toBe(1)
-        ->and(count($failed))->toBe(1);
-
-    $this->inventory->refresh();
-    expect($this->inventory->quantity_available)->toBe(0)
-        ->and($this->inventory->quantity_reserved)->toBe(5);
-
-    expect(SalesOrder::count())->toBe(1)
-        ->and(Reservation::count())->toBe(1);
-});
-
-test('concurrent task runner ensures stock protection with pessimistic locking', function () {
-    if (config('database.default') === 'sqlite' && config('database.connections.sqlite.database') === ':memory:') {
-        // Skip multi-process concurrency test when running on in-memory SQLite isolated per process
-        return expect(true)->toBeTrue();
-    }
-
-    $payload = [
-        'lines' => [
-            [
-                'product_id' => $this->product->id,
-                'warehouse_id' => $this->warehouse->id,
-                'quantity' => 5,
+        $payload = [
+            'lines' => [
+                [
+                    'product_id' => $this->product->id,
+                    'warehouse_id' => $this->warehouse->id,
+                    'quantity' => 5,
+                ],
             ],
-        ],
-    ];
+        ];
 
-    $creator1Id = (int) $this->orderCreator1->id;
-    $creator2Id = (int) $this->orderCreator2->id;
+        $creator1Id = (int) $this->orderCreator1->id;
+        $creator2Id = (int) $this->orderCreator2->id;
 
-    $results = Concurrency::run([
-        function () use ($payload, $creator1Id) {
-            try {
-                return app(OrderService::class)->create($payload, $creator1Id)->id;
-            } catch (Throwable $e) {
-                return 'failed: '.$e->getMessage();
-            }
-        },
-        function () use ($payload, $creator2Id) {
-            try {
-                return app(OrderService::class)->create($payload, $creator2Id)->id;
-            } catch (Throwable $e) {
-                return 'failed: '.$e->getMessage();
-            }
-        },
-    ]);
+        $results = Concurrency::run([
+            static function () use ($payload, $creator1Id) {
+                try {
+                    return app(OrderService::class)->create($payload, $creator1Id)->id;
+                } catch (Throwable $e) {
+                    return 'failed: '.$e->getMessage();
+                }
+            },
+            static function () use ($payload, $creator2Id) {
+                try {
+                    return app(OrderService::class)->create($payload, $creator2Id)->id;
+                } catch (Throwable $e) {
+                    return 'failed: '.$e->getMessage();
+                }
+            },
+        ]);
 
-    $successful = array_filter($results, fn ($res) => is_int($res));
-    expect(count($successful))->toBe(1);
+        $successful = array_filter($results, fn ($res) => is_int($res));
+        $this->assertCount(1, $successful);
 
-    $this->inventory->refresh();
-    expect($this->inventory->quantity_available)->toBe(0)
-        ->and($this->inventory->quantity_reserved)->toBe(5);
-});
+        $this->inventory->refresh();
+        $this->assertEquals(0, $this->inventory->quantity_available);
+        $this->assertEquals(5, $this->inventory->quantity_reserved);
+    }
+}

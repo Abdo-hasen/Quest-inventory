@@ -14,7 +14,20 @@ final class CheckShipmentStatusJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $tries = 3;
+    public int $tries = 5;
+
+    /**
+     * Calculate backoff delay with random jitter (80% - 120% of base delay)
+     * to prevent Thundering Herd on external carrier API.
+     */
+    public function backoff(): int
+    {
+        $baseBackoffs = [60, 300, 900, 3600];
+        $attemptIndex = max(0, $this->attempts() - 1);
+        $baseDelay = $baseBackoffs[min($attemptIndex, count($baseBackoffs) - 1)];
+
+        return random_int((int) ($baseDelay * 0.8), (int) ($baseDelay * 1.2));
+    }
 
     public function __construct(
         public readonly Shipment $shipment

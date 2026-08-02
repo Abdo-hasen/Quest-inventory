@@ -85,3 +85,19 @@ it('returns 401 unauthorized for non-existent email', function () {
             'data' => null,
         ]);
 });
+
+it('returns 429 too many requests when login rate limit is exceeded', function () {
+    for ($i = 0; $i < 5; $i++) {
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'test@warehouse.com',
+            'password' => 'wrong',
+        ], $this->headers);
+    }
+
+    $response = $this->postJson('/api/v1/auth/login', [
+        'email' => 'test@warehouse.com',
+        'password' => 'wrong',
+    ], $this->headers);
+
+    $response->assertStatus(429);
+});
